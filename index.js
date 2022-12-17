@@ -1,6 +1,7 @@
 const express = require("express");
 var cors = require("cors");
 require("./db");
+const connectDb = require("./db");
 
 const app = express();
 app.use(cors());
@@ -15,6 +16,8 @@ app.get("/", (req, res) => {
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/notes", require("./routes/notes"));
 
-app.listen(5000, () => {
-  console.log("Running on port 5000...");
+connectDb().then(() => {
+  app.listen(5000, () => {
+    console.log("listening for requests");
+  });
 });
