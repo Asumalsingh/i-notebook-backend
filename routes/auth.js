@@ -11,13 +11,14 @@ const fetchUser = require("../middleware/fetchuser");
 router.post(
   "/createuser",
   [
-    body("name", "Please enter your name").isLength({ min: 3 }),
+    body("name", "Name should contains at least 3 letters").isLength({ min: 3 }),
     body("email", "Enter a valid email").isEmail(),
     body("password", "Password should contains 5 characters").isLength({
       min: 5,
     }),
   ],
   async (req, res) => {
+    let success = false;
     // Finds the validation errors in this request and wraps them in an object with handy functions
     const errors = validationResult(req);
     // this errors handling is for validation
@@ -30,7 +31,7 @@ router.post(
       let user = await User.findOne({ email: req.body.email });
       // if user exist, then send a bad request
       if (user) {
-        return res.status(500).send({ error: "Email already exist" });
+        return res.status(500).send({ success, error: "Email already exist" });
       }
 
       // password hashing
@@ -52,7 +53,8 @@ router.post(
       };
 
       const authToken = jwt.sign(data, process.env.JWT_SECRET);
-      res.json({ authToken });
+      success = true;
+      res.json({ success, authToken });
     } catch (error) {
       // this error handling if for unique email
       res.send({ errorMessage: error.message });
@@ -68,6 +70,7 @@ router.post(
     body("password", "Password Cann't be null").isLength({ min: 1 }),
   ],
   async (req, res) => {
+    let success = false;
     // Finds the validation errors in this request and wraps them in an object with handy functions
     const errors = validationResult(req);
     // this errors handling is for validation
@@ -81,17 +84,19 @@ router.post(
       let user = await User.findOne({ email });
       // if user not exist, then send a bad request
       if (!user) {
-        return res
-          .status(400)
-          .json({ error: "please try to login with correct credentials" });
+        return res.status(400).json({
+          success,
+          error: "please try to login with correct credentials",
+        });
       }
 
       const passwordCompare = await bcrypt.compare(password, user.password);
       console.log(passwordCompare);
       if (!passwordCompare) {
-        return res
-          .status(400)
-          .json({ error: "please try to login  with correct credentials" });
+        return res.status(400).json({
+          success,
+          error: "please try to login  with correct credentials",
+        });
       }
 
       // if use exist
@@ -100,8 +105,9 @@ router.post(
           id: user.id,
         },
       };
+      success = true;
       const authToken = jwt.sign(data, process.env.JWT_SECRET);
-      res.json({ authToken });
+      res.json({ success, authToken });
     } catch (error) {
       console.log(error.message);
       res.status(500).send("Enternal server error");
@@ -120,8 +126,6 @@ router.post("/getuser", fetchUser, async (req, res) => {
     // console.log(error.message);
     res.status(500).send("Integernal server error");
   }
-
-  
 });
 
 module.exports = router;

@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
-
-const uri = "mongodb://localhost:27017/iNotebook";
+require("dotenv").config();
+const uri = process.env.ATLAS_URI;
+console.log(uri);
 
 mongoose.connect(uri);
