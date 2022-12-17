@@ -1,6 +1,5 @@
 const express = require("express");
 var cors = require("cors");
-require("./db");
 const connectDb = require("./db");
 
 const app = express();
@@ -17,6 +16,7 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api/notes", require("./routes/notes"));
 
 connectDb().then(() => {
+  console.log("db connected")
   app.listen(5000, () => {
     console.log("listening for requests");
   });
