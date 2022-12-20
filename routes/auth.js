@@ -1,5 +1,5 @@
 const express = require("express");
-const User = require("../models/User");
+const UserModel = require("../models/UserModel");
 const router = express.Router();
 const { body, validationResult } = require("express-validator");
 const bcrypt = require("bcryptjs");
@@ -28,7 +28,7 @@ router.post(
 
     try {
       // check whether user exist or not
-      let user = await User.findOne({ email: req.body.email });
+      let user = await UserModel.findOne({ email: req.body.email });
       // if user exist, then send a bad request
       if (user) {
         return res.status(500).send({ success, error: "Email already exist" });
@@ -39,7 +39,7 @@ router.post(
       let hash = await bcrypt.hash(req.body.password, salt);
 
       // Otherwise create new user
-      user = new User({
+      user = new UserModel({
         name: req.body.name,
         email: req.body.email,
         password: hash,
@@ -81,7 +81,7 @@ router.post(
     const { email, password } = req.body;
     try {
       // check whether user exist or not
-      let user = await User.findOne({ email });
+      let user = await UserModel.findOne({ email });
       // if user not exist, then send a bad request
       if (!user) {
         return res.status(400).json({
@@ -120,7 +120,7 @@ router.post("/getuser", fetchUser, async (req, res) => {
   try {
     const userId = req.user.id;
     //                                     by doint .select("-password") we exclude password
-    const user = await User.findById(userId).select("-password");
+    const user = await UserModel.findById(userId).select("-password");
     res.send(user);
   } catch (error) {
     // console.log(error.message);

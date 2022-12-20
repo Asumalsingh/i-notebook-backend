@@ -1,13 +1,38 @@
 const express = require("express");
 const router = express.Router();
-const Notes = require("../models/Notes");
+const NotesModel = require("../models/NotesModel");
 const fetchUser = require("../middleware/fetchuser");
 const { body, validationResult } = require("express-validator");
 
 // Get note using get
 router.get("/getnote", fetchUser, async (req, res) => {
-  const note = await Notes.find({ userId: req.user.id });
-  res.send(note);
+  const page = parseInt(req.query.page);
+  const query = req.query.q;
+  const limit = 10;
+  try {
+    const notes = await NotesModel.find({
+      userId: req.user.id,
+      $or: [
+        { title: { $regex: query, $options: "i" } },
+        { description: { $regex: query, $options: "i" } },
+        // filter using query
+      ],
+    });
+
+    // Pagination
+    let totalPage;
+    if (notes.length % limit === 0) {
+      totalPage = Math.floor(notes.length / limit);
+    } else {
+      totalPage = Math.floor(notes.length / limit) + 1;
+    }
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+
+    res.send({ totalPage, notes: notes.slice(startIndex, endIndex) });
+  } catch (error) {
+    res.status(500).send("Integernal server error");
+  }
 });
 
 // Add note using add
@@ -30,7 +55,7 @@ router.post(
 
     const { title, description, tag } = req.body;
     try {
-      const note = await Notes({
+      const note = await NotesModel({
         userId: req.user.id,
         title,
         description,
@@ -70,7 +95,7 @@ router.put(
 
     try {
       // Find the note to be updated
-      let note = await Notes.findById(req.params.id);
+      let note = await NotesModel.findById(req.params.id);
       // if note not exist
       if (!note) return res.status(401).send("Not found");
 
@@ -80,7 +105,7 @@ router.put(
       }
 
       // finally update note
-      note = await Notes.findByIdAndUpdate(
+      note = await NotesModel.findByIdAndUpdate(
         req.params.id,
         { $set: newNote },
         { new: true } // by using this true note return after update
@@ -97,7 +122,7 @@ router.put(
 router.delete("/deletenote/:id", fetchUser, async (req, res) => {
   try {
     // Find the note to be deleted
-    let note = await Notes.findById(req.params.id);
+    let note = await NotesModel.findById(req.params.id);
     // if note not exist
     if (!note) return res.status(401).send("Not found");
 
@@ -107,7 +132,7 @@ router.delete("/deletenote/:id", fetchUser, async (req, res) => {
     }
 
     // delet note
-    note = await Notes.findByIdAndDelete(req.params.id);
+    note = await NotesModel.findByIdAndDelete(req.params.id);
     res.send(note);
   } catch (error) {
     res.status(500).send("Integernal server error");
