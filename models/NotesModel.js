@@ -19,6 +19,7 @@ const notesSchema = new mongoose.Schema({
   description: { type: String },
   tag: { type: String },
   date: { type: String, default: time + " | " + date },
+  sharedWith: [{}],
 });
 
 module.exports = mongoose.model("notes", notesSchema);

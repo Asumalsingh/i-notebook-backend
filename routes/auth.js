@@ -4,14 +4,15 @@ const router = express.Router();
 const { body, validationResult } = require("express-validator");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-require("dotenv").config();
 const fetchUser = require("../middleware/fetchuser");
 
 // Create a user using post : "api/auth/createuser" . no login required
 router.post(
   "/createuser",
   [
-    body("name", "Name should contains at least 3 letters").isLength({ min: 3 }),
+    body("name", "Name should contains at least 3 letters").isLength({
+      min: 3,
+    }),
     body("email", "Enter a valid email").isEmail(),
     body("password", "Password should contains 5 characters").isLength({
       min: 5,
@@ -91,7 +92,6 @@ router.post(
       }
 
       const passwordCompare = await bcrypt.compare(password, user.password);
-      console.log(passwordCompare);
       if (!passwordCompare) {
         return res.status(400).json({
           success,
@@ -99,7 +99,7 @@ router.post(
         });
       }
 
-      // if use exist
+      // if user exist
       const data = {
         user: {
           id: user.id,
@@ -124,7 +124,7 @@ router.post("/getuser", fetchUser, async (req, res) => {
     res.send(user);
   } catch (error) {
     // console.log(error.message);
-    res.status(500).send("Integernal server error");
+    res.status(500).send("Internal server error");
   }
 });
 

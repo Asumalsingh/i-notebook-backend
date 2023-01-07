@@ -3,6 +3,7 @@ const router = express.Router();
 const NotesModel = require("../models/NotesModel");
 const fetchUser = require("../middleware/fetchuser");
 const { body, validationResult } = require("express-validator");
+const UserModel = require("../models/UserModel");
 
 // Get note using get
 router.get("/getnote", fetchUser, async (req, res) => {
@@ -19,6 +20,15 @@ router.get("/getnote", fetchUser, async (req, res) => {
       ],
     });
 
+    // This code is for showing the shared notes with specific user
+    // find the email of user
+    const userObj = await UserModel.find({ _id: req.user.id }).select("email");
+    const userEmail = userObj[0].email;
+    const shNotes = await NotesModel.find({ "sharedWith.email": userEmail });
+    for (let i = 0; i < shNotes.length; i++) {
+      notes.push(shNotes[i]);
+    }
+
     // Pagination
     let totalPage;
     if (notes.length % limit === 0) {
@@ -31,7 +41,8 @@ router.get("/getnote", fetchUser, async (req, res) => {
 
     res.send({ totalPage, notes: notes.slice(startIndex, endIndex) });
   } catch (error) {
-    res.status(500).send("Integernal server error");
+    console.log(error);
+    res.status(500).send("Internal server error");
   }
 });
 
@@ -64,7 +75,7 @@ router.post(
       const savedNotes = await note.save();
       res.send(savedNotes);
     } catch (error) {
-      res.status(500).send("Integernal server error");
+      res.status(500).send("Internal server error");
     }
   }
 );
@@ -92,15 +103,32 @@ router.put(
     if (title) newNote.title = title;
     if (description) newNote.description = description;
     if (tag) newNote.tag = tag;
-
     try {
       // Find the note to be updated
       let note = await NotesModel.findById(req.params.id);
       // if note not exist
       if (!note) return res.status(401).send("Not found");
 
-      // if user is not owener of this note
-      if (note.userId.toString() !== req.user.id) {
+      // check currently logged in user is the editor for this note or not
+      let isEditor = false;
+      for (let i = 0; i < note.sharedWith.length; i++) {
+        // find the userId of user with the given email
+        const userObj = await UserModel.find({
+          email: note.sharedWith[i].email,
+        }).select("_id");
+
+        if (
+          userObj.length != 0 &&
+          req.user.id === userObj[0]._id.toString() &&
+          note.sharedWith[i].access === "editor"
+        ) {
+          isEditor = true;
+          break;
+        }
+      }
+
+      // if user is not owener or the editor of this note
+      if (note.userId.toString() !== req.user.id && !isEditor) {
         return res.status(401).send("Not allowed");
       }
 
@@ -113,7 +141,8 @@ router.put(
 
       res.send(note);
     } catch (error) {
-      res.status(500).send("Integernal server error");
+      console.log(error);
+      res.status(500).send("Internal server error");
     }
   }
 );
@@ -135,7 +164,64 @@ router.delete("/deletenote/:id", fetchUser, async (req, res) => {
     note = await NotesModel.findByIdAndDelete(req.params.id);
     res.send(note);
   } catch (error) {
-    res.status(500).send("Integernal server error");
+    res.status(500).send("Internal server error");
   }
 });
+
+// Share notes with other users using put
+router.put(
+  "/sharenote/:id",
+  [body("email", "shoreter").isEmail()],
+  fetchUser,
+  async (req, res) => {
+    // Finds the validation errors in this request and wraps them in an object with handy functions
+    const errors = validationResult(req);
+    // this errors handling is for validation
+    if (!errors.isEmpty())
+      return res.status(400).json({ errors: errors.array() });
+
+    const { email, access } = req.body;
+    // Create a newNote object and add field into it that user updates
+    try {
+      // Find the note to be updated
+      let note = await NotesModel.findById(req.params.id);
+      // if note not exist
+      if (!note) return res.status(401).send("Not found");
+
+      // if user is not owener of this note
+      if (note.userId.toString() !== req.user.id) {
+        return res.status(401).send("Not allowed");
+      }
+
+      let exist = false;
+      const shared = note.sharedWith;
+      for (let i in shared) {
+        if (shared[i].email === email) {
+          shared[i].access = access;
+          exist = true;
+          break;
+        }
+      }
+      // finally share note
+      if (exist) {
+        note = await NotesModel.updateOne(
+          { _id: req.params.id },
+          { $set: { sharedWith: shared } }
+        );
+      } else {
+        note = await NotesModel.updateOne(
+          { _id: req.params.id },
+          {
+            $push: { sharedWith: { email, access } },
+          }
+        );
+      }
+
+      res.send(note);
+    } catch (error) {
+      console.log(error);
+      res.status(500).send("Internal server error");
+    }
+  }
+);
 module.exports = router;

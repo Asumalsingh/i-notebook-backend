@@ -1,5 +1,4 @@
 const jwt = require("jsonwebtoken");
-require("dotenv").config();
 
 const fetchUser = (req, res, next) => {
   // Get the user from auth token and add it to req object
