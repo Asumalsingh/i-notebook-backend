@@ -6,6 +6,38 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const fetchUser = require("../middleware/fetchuser");
 
+// create user if not exist usint post : 
+router.post("/loginWithGoogle", async (req, res) => {
+  const { name, email, googleId, emailVerified, picture } = req.body;
+  let success = false;
+  try {
+    let user = await UserModel.findOne({ googleId });
+
+    // if user not exist then create new user
+    if (!user) {
+      user = new UserModel({
+        name,
+        email,
+        googleId,
+        emailVerified,
+        picture,
+      });
+      await user.save();
+    }
+
+    const data = {
+      id: user.id,
+      email: user.email,
+    };
+
+    const authToken = jwt.sign(data, process.env.JWT_SECRET);
+    success = true;
+    res.json({ success, authToken });
+  } catch (error) {
+    res.send({ errorMessage: error.message });
+  }
+});
+
 // Create a user using post : "api/auth/createuser" . no login required
 router.post(
   "/createuser",
@@ -32,7 +64,7 @@ router.post(
       let user = await UserModel.findOne({ email: req.body.email });
       // if user exist, then send a bad request
       if (user) {
-        return res.status(500).send({ success, error: "Email already exist" });
+        return res.status(402).send({ success, error: "Email already exist" });
       }
 
       // password hashing
@@ -48,16 +80,14 @@ router.post(
       await user.save();
 
       const data = {
-        user: {
-          id: user.id,
-        },
+        id: user.id,
+        email: user.email,
       };
 
       const authToken = jwt.sign(data, process.env.JWT_SECRET);
       success = true;
       res.json({ success, authToken });
     } catch (error) {
-      // this error handling if for unique email
       res.send({ errorMessage: error.message });
     }
   }
@@ -101,15 +131,14 @@ router.post(
 
       // if user exist
       const data = {
-        user: {
-          id: user.id,
-        },
+        id: user.id,
+        email: user.email,
       };
       success = true;
       const authToken = jwt.sign(data, process.env.JWT_SECRET);
       res.json({ success, authToken });
     } catch (error) {
-      console.log(error.message);
+      // console.log(error.message);
       res.status(500).send("Enternal server error");
     }
   }

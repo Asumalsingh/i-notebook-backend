@@ -3,7 +3,7 @@ const router = express.Router();
 const NotesModel = require("../models/NotesModel");
 const fetchUser = require("../middleware/fetchuser");
 const { body, validationResult } = require("express-validator");
-const UserModel = require("../models/UserModel");
+const sendEmail = require("../middleware/sendEmail");
 
 // Get note using get
 router.get("/getnote", fetchUser, async (req, res) => {
@@ -21,10 +21,9 @@ router.get("/getnote", fetchUser, async (req, res) => {
     });
 
     // This code is for showing the shared notes with specific user
-    // find the email of user
-    const userObj = await UserModel.find({ _id: req.user.id }).select("email");
-    const userEmail = userObj[0].email;
-    const shNotes = await NotesModel.find({ "sharedWith.email": userEmail });
+    const shNotes = await NotesModel.find({
+      "sharedWith.email": req.user.email,
+    });
     for (let i = 0; i < shNotes.length; i++) {
       notes.push(shNotes[i]);
     }
@@ -109,29 +108,18 @@ router.put(
       // if note not exist
       if (!note) return res.status(401).send("Not found");
 
-      // check currently logged in user is the editor for this note or not
+      // check currently logged in user is the editor of this note or not
       let isEditor = false;
       for (let i = 0; i < note.sharedWith.length; i++) {
-        // find the userId of user with the given email
-        const userObj = await UserModel.find({
-          email: note.sharedWith[i].email,
-        }).select("_id");
-
-        if (
-          userObj.length != 0 &&
-          req.user.id === userObj[0]._id.toString() &&
-          note.sharedWith[i].access === "editor"
-        ) {
+        if (note.sharedWith[i].email === req.user.email) {
           isEditor = true;
           break;
         }
       }
-
       // if user is not owener or the editor of this note
       if (note.userId.toString() !== req.user.id && !isEditor) {
         return res.status(401).send("Not allowed");
       }
-
       // finally update note
       note = await NotesModel.findByIdAndUpdate(
         req.params.id,
@@ -215,6 +203,8 @@ router.put(
             $push: { sharedWith: { email, access } },
           }
         );
+        // send email to whith you share note
+        sendEmail(req.user.email, email);
       }
 
       res.send(note);

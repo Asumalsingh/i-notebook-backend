@@ -12,7 +12,7 @@ const fetchUser = (req, res, next) => {
 
   try {
     const data = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = data.user;
+    req.user = data;
     next();
   } catch (error) {
     return res
